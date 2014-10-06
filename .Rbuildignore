@@ -1,0 +1,4 @@
+.*.tar.gz
+configure.ac
+autom4te\.cache
+aclocal.m4

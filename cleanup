@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Removing AC content
+for f in config.log config.status config.cache ; do
+    if test -w $f ; then
+        rm -f $f
+    fi
+done
+
+# Removing AC modified files
+for f in R/convert.R src/config.h src/Makevars ; do
+    if test -w $f ; then
+        rm -f $f
+    fi
+done
+
+exit 0
+

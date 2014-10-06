@@ -1,0 +1,12 @@
+library(grConvert)
+if (require(grImport2)) {
+    psFiles <- c("Georgia.ps", "Michigan.ps", "Mississippi.ps", "New_Zealand.ps")
+    svgFiles <- paste0(psFiles, "-new.svg")
+    
+    if (@HAVE_PS@) {
+        for (i in seq_along(psFiles)) {
+            convertPicture(psFiles[i], paste0(psFiles[i], "-new.svg"))
+            tmp <- readPicture(svgFiles[i])
+        }
+    }
+}

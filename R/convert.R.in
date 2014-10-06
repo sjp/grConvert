@@ -1,0 +1,201 @@
+supportedFiles <- list(ps = @HAVE_PS@,
+                       pdf = @HAVE_PDF@,
+                       svg = @HAVE_SVG@)
+
+grConvert.capabilities <- function(print = TRUE) {
+    if (! print)
+        return(supportedFiles)
+    filetypeSupport <- unlist(supportedFiles)
+    filetypeNames <- c("PostScript", "PDF", "SVG")
+    supportedText <- paste0(filetypeNames[filetypeSupport],
+                            collapse = " ")
+    cat("Supported input formats:", supportedText, "\n")
+    invisible(supportedFiles)
+}
+
+convertPicture <- function(file, outfile,
+                           inputFormat = NA, outputFormat = NA,
+                           pagenum = 1L) {
+    # If format is unspecified, deduce from filename
+    if (is.na(inputFormat))
+        inputFormat <- guessFormat(file)
+    if (is.na(outputFormat))
+        outputFormat <- guessFormat(outfile)
+
+    inputFormat <- tolower(inputFormat)
+    outputFormat <- tolower(outputFormat)
+    # eps is just a standalone form of PostScript
+    if (inputFormat == "eps")
+        inputFormat <- "ps"
+    if (outputFormat == "eps")
+        outputFormat <- "ps"
+    validateExtensions(inputFormat, outputFormat)
+
+    pagenum <- as.integer(pagenum)
+    if (pagenum <= 0)
+        stop("Page number must be non-negative and non-zero")
+
+    file <- toValidSourceFilename(file)
+    outfile <- toValidTargetFilename(outfile)
+
+    conv <-
+        if (outputFormat == "ps")
+            switch(inputFormat,
+                   ps = convertPStoPS,
+                   pdf = convertPDFtoPS,
+                   svg = convertSVGtoPS)
+        else # svg
+            switch(inputFormat,
+                   ps = convertPStoSVG,
+                   pdf = convertPDFtoSVG,
+                   svg = convertSVGtoSVG)
+
+    # Now to perform the actual conversion
+    conv(file, outfile, pagenum)
+
+    # For SVG, add a comment so that we know grConvert created the image.
+    # This is useful for grImport2 because it can use this to check for
+    # validity of its input (instead of assuming all SVG is valid).
+    if (outputFormat == "svg")
+        addCommentTag(outfile)
+
+    invisible(NULL)
+}
+
+convertPStoPS <- function(file, outfile, pagenum = 1L) {
+    message(paste(sQuote(file), "(PS) can already be used by grImport"))
+}
+
+convertPDFtoPS <- function(file, outfile, pagenum = 1L) {
+    maxpages <- getNumberOfPagesPDF(file)
+    validatePageNum(pagenum, maxpages)
+    .Call("pdf_to_ps", file, outfile, as.integer(pagenum),
+          PACKAGE = "@PACKAGE_NAME@")
+    message(paste(sQuote(file), "(PDF) was converted to",
+                  sQuote(outfile), "(PS)"))
+}
+
+convertSVGtoPS <- function(file, outfile, pagenum = 1L) {
+    if (pagenum != 1L)
+        warning("SVG (v1.1) does not support pages, ignoring page number")
+    .Call("svg_to_ps", file, outfile, PACKAGE = "@PACKAGE_NAME@")
+    message(paste(sQuote(file), "(SVG) was converted to",
+                  sQuote(outfile), "(PS)"))
+}
+
+convertPStoSVG <- function(file, outfile, pagenum = 1L) {
+    maxpages <- getNumberOfPagesPS(file)
+    validatePageNum(pagenum, maxpages)
+    # Have to convert to an intermediate PDF file
+    pdffile <- paste0(file, ".pdf")
+    pstopdf(file, pdffile)
+    file <- pdffile
+    convertPDFtoSVG(file, outfile, as.integer(pagenum))
+}
+
+convertPDFtoSVG <- function(file, outfile, pagenum = 1L) {
+    maxpages <- getNumberOfPagesPDF(file)
+    validatePageNum(pagenum, maxpages)
+    .Call("pdf_to_svg", file, outfile, as.integer(pagenum),
+          PACKAGE = "@PACKAGE_NAME@")
+    message(paste(sQuote(file), "(PDF) was converted to",
+                  sQuote(outfile), "(Cairo SVG)"))
+}
+
+convertSVGtoSVG <- function(file, outfile, pagenum = 1L) {
+    if (pagenum != 1L)
+        warning("SVG (v1.1) does not support pages, ignoring page number")
+    .Call("svg_to_svg", file, outfile, PACKAGE = "@PACKAGE_NAME@")
+    message(paste(sQuote(file), "(SVG) was converted to",
+                  sQuote(outfile), "(Cairo SVG)"))
+}
+
+pstopdf <- function(psfile, pdffile = NULL) {
+    if (is.null(pdffile))
+        pdffile <- paste0(psfile, ".pdf")
+    .Call("ps_to_pdf", psfile, pdffile, PACKAGE = "@PACKAGE_NAME@")
+    # Remove temp file that GS produces capture*.ps
+    unlink(file.path(dirname(psfile),
+                     paste0("capture", basename(psfile))))
+    message(paste(sQuote(psfile), "(PS) was converted to",
+                  sQuote(pdffile), "(PDF)"))
+}
+
+getNumberOfPagesPDF <- function(file) {
+    .Call("pdf_get_n_pages", file, PACKAGE = "@PACKAGE_NAME@")
+}
+
+getNumberOfPagesPS <- function(file) {
+    .Call("ps_get_n_pages", file, PACKAGE = "@PACKAGE_NAME@")
+}
+
+toValidSourceFilename <- function(file) {
+    if (! is.character(file) || length(file) != 1)
+        stop("'file' must be a scalar character string")
+    normalizePath(file, mustWork = TRUE)
+}
+
+toValidTargetFilename <- function(file) {
+    if (! is.character(file) || length(file) != 1)
+        stop("'file' must be a scalar character string")
+    # Open a temp file (which will later be removed) so that we can
+    # resolve the absolute path using normalizePath
+    fcon <- base::file(file, open = "w")
+    file <- normalizePath(file, mustWork = TRUE)
+    close(fcon)
+    unlink(fcon)
+    file
+}
+
+validatePageNum <- function(pagenum, maxpages) {
+    if (! is.numeric(pagenum) || length(pagenum) != 1)
+        stop("Invalid page number, must be a scalar integer vector")
+    if (! is.numeric(maxpages) || length(maxpages) != 1)
+        stop("Invalid max page number, must be a scalar integer vector")
+    if (pagenum > maxpages)
+        stop(paste0("page number (", pagenum,
+                    ") greater than total pages (", maxpages, ")"))
+}
+
+guessFormat <- function(file, type = c("input", "output")) {
+    type <- match.arg(type)
+    splitByDot <- strsplit(file, "\\.")[[1]]
+    if (! length(splitByDot)) {
+        errorVar <- if (type == "input") "'file'" else "'outfile'"
+        stop(paste0("Unable to deduce a file extension for ",
+                    errorVar))
+    }
+    splitByDot[length(splitByDot)]
+}
+
+validateExtensions <- function(inputExt, outputExt) {
+    if (! inputExt %in% c("ps", "pdf", "svg"))
+        stop(paste0("File extension '", inputExt, "' for ",
+                    "'inputFormat' is not a supported input filetype"))
+    if (! supportedFiles[[inputExt]])
+       stop(paste0("This package was not installed with support for reading '",
+            toupper(inputExt), "' images"))
+    if (! outputExt %in% c("ps", "svg"))
+        stop(paste0("File extension '", outputExt, "' for ",
+                    "'outputFormat' is not a supported output filetype"))
+}
+
+addCommentTag <- function(svgfile) {
+    # Read all SVG
+    con <- file(svgfile, "r")
+    allLines <- readLines(con)
+    close(con)
+    # Create a new connection to reset position in file
+    con <- file(svgfile, "w")
+    # Write out a new SVG file with a comment tag added but ensure that
+    # the XML declaration remains in the first line
+    writeLines(allLines[[1]], con = con)
+    allLines <- allLines[-1]
+    writeLines(paste0("<!-- Created by grConvert v",
+               packageDescription("grConvert")$Version,
+               " -->"), con = con)
+    for (i in seq_along(allLines))
+        writeLines(allLines[[i]], con = con)
+    close(con)
+}
+

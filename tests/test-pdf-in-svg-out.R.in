@@ -1,0 +1,13 @@
+library(grConvert)
+if (require(grImport2)) {
+    pdfFiles <- c("Georgia.pdf", "Michigan.pdf", "Mississippi.pdf",
+                  "New_Zealand.pdf")
+    svgFiles <- paste0(pdfFiles, ".svg")
+    
+    if (@HAVE_PDF@) {
+        for (i in seq_along(pdfFiles)) {
+            convertPicture(pdfFiles[i], svgFiles[i])
+            tmp <- readPicture(svgFiles[i])
+        }
+    }
+}

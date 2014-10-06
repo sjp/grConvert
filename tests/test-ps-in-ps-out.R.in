@@ -1,0 +1,17 @@
+# This should be a noop because any PS should (in theory) be understood
+# already by Ghostscript, and therefore grImport should be able to import
+# it immediately.
+# We expect grConvert should just give us a message in this case informing
+# us that the input is already valid.
+
+library(grConvert)
+if (require(grImport)) {
+    psFiles <- c("Georgia.ps", "Michigan.ps", "Mississippi.ps", "New_Zealand.ps")
+    
+    if (@HAVE_PS@) {
+        for (i in seq_along(psFiles)) {
+            convertPicture(psFiles[i], paste0(psFiles[i], "-new.ps"))
+            PostScriptTrace(psFiles[i])
+        }
+    }
+}

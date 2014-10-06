@@ -1,0 +1,13 @@
+library(grConvert)
+if (require(grImport)) {
+    pdfFiles <- c("Georgia.pdf", "Michigan.pdf", "Mississippi.pdf",
+                  "New_Zealand.pdf")
+    psFiles <- paste0(pdfFiles, ".ps")
+    
+    if (@HAVE_PDF@) {
+        for (i in seq_along(pdfFiles)) {
+            convertPicture(pdfFiles[i], psFiles[i])
+            PostScriptTrace(psFiles[i])
+        }
+    }
+}

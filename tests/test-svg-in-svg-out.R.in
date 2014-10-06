@@ -1,0 +1,13 @@
+library(grConvert)
+if (require(grImport2)) {
+    svgInputFiles <- c("Georgia.svg", "Michigan.svg", "Mississippi.svg",
+                       "New_Zealand.svg")
+    svgOutputFiles <- paste0(svgInputFiles, "-out.svg")
+    
+    if (@HAVE_SVG@) {
+        for (i in seq_along(svgInputFiles)) {
+            convertPicture(svgInputFiles[i], svgOutputFiles[i])
+            tmp <- readPicture(svgOutputFiles[i])
+        }
+    }
+}

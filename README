@@ -1,0 +1,46 @@
+Installation Instructions
+=========================
+
+In order to correctly read in all of the currently supported vector
+image formats, it is necessary to have the development header files
+and the required libraries. In Debian (and probably Ubuntu and
+friends) the following command (as root) should install the required
+files:
+
+apt-get install libcairo2-dev libspectre-dev librsvg2-dev \
+                libpoppler-glib-dev
+
+However, it is not strictly necessary to have all of these packages
+installed. For example, if you do not wish to have PostScript as a
+supported input format, it is possible to simply omit
+`libspectre-dev`. Similarly for SVG and PDF, omit `librsvg2-dev` and
+`libpoppler-glib-dev` respectively.
+
+It is also possible to disable support for a given input format when
+installing the package even when the platform supports that
+format. This is possible via a `--configure-args` argument when
+installing a package. There are three possible arguments:
+
+* `--disable-ps-input`: Disable support for PostScript as an input
+  format.
+* `--disable-pdf-input`: Disable support for PDF as an input format.
+* `--disable-svg-input`: Disable support for SVG as an input format.
+
+To explicitly disable support for an input format in practice would
+involve installing the grConvert package like so:
+
+# Disabling support for PS and PDF input:
+R CMD INSTALL --configure-args="--disable-ps-input --disable-pdf-input" \
+  grConvert_0.1-0.tar.gz
+# Disabling only PS
+R CMD INSTALL --configure-args="--disable-ps-input" grConvert_0.1-0.tar.gz
+
+Similarly, we can apply the same `configure` arugments via the
+`install.packages()` function.
+
+install.packages("grConvert_0.1-0.tar.gz", type = "source", repos = NULL,
+                 configure.args = "--disable-ps-input")
+
+Note that if all three formats are disabled, then installation will
+not proceed because the `grConvert` package cannot convert images if
+it cannot parse any of them.

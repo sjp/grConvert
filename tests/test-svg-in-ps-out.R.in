@@ -1,0 +1,13 @@
+library(grConvert)
+if (require(grImport)) {
+    svgFiles <- c("Georgia.svg", "Michigan.svg", "Mississippi.svg",
+                  "New_Zealand.svg")
+    psFiles <- paste0(svgFiles, ".ps")
+    
+    if (@HAVE_SVG@) {
+        for (i in seq_along(svgFiles)) {
+            convertPicture(svgFiles[i], psFiles[i])
+            PostScriptTrace(psFiles[i])
+        }
+    }
+}
