@@ -2,3 +2,4 @@
 configure.ac
 autom4te\.cache
 aclocal.m4
+.travis.yml
